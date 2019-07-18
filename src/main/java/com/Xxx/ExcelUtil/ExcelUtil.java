@@ -180,9 +180,11 @@ public class ExcelUtil {
         try {
             T object = tClass.newInstance();
             for (int i = 0; i < fields.length; i++) {
-                String cell = row.getCell(index[i]).toString();
-                Object valueElement = getValueElement(cell, fields[i].getType());
-                fields[i].set(object,valueElement);
+                if(index[i]!=null){
+                    String cell = row.getCell(index[i]).toString();
+                    Object valueElement = getValueElement(cell, fields[i].getType());
+                    fields[i].set(object,valueElement);
+                }
             }
             return object;
         } catch (InstantiationException e) {
