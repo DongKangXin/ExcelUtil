@@ -28,5 +28,5 @@ public class Student {
 ### 在程序中调用
 ```
 public static void main(String[] args){
-    Collection<Object> objects = ExcelUtil.parseExcel(new FileInputStream(file), Object.class);
+    Collection<Student> students = ExcelUtil.parseExcel(new FileInputStream(file), Student.class);
 }
