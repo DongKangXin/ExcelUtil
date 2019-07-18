@@ -1,6 +1,8 @@
 package com.Xxx.ExcelUtil;
 
 
+import com.Xxx.ExcelUtil.annotation.Header;
+import org.apache.poi.ss.formula.functions.T;
 import org.apache.poi.ss.usermodel.*;
 
 import java.io.IOException;
@@ -11,7 +13,9 @@ import java.util.*;
 
 public class ExcelUtil {
 
-    /**
+    private static final Date TIME_SINCE = new GregorianCalendar(1900, 0, 0).getTime();
+
+    /*
      * 导出类
      */
     private static Class<?> clazz;
@@ -22,28 +26,24 @@ public class ExcelUtil {
     private static Field[] fields;
 
     /**
-     * 属性类型
-     */
-    private static Integer[] type;
-
-    /**
      * 属性值索引
      */
     private static Integer[] index;
 
-    /**
-     * 导出对象集合
-     */
-    private static Collection<Object> objects;
 
 
-    public static Collection<Object> parseExcel(InputStream inputStream, String fieldValue, Class<?> clazz) {
+    public static <T> Collection<T> parseExcel(InputStream inputStream, Class<T> clazz) {
+        Map<String, String> fieldValueMap = getFieldValueMap(clazz);
+        return parseExcel(inputStream, fieldValueMap, clazz);
+    }
+
+    public static <T> Collection<T> parseExcel(InputStream inputStream, String fieldValue, Class<T> clazz) {
         Map<String, String> fieldValueMap = getFieldValueMap(fieldValue);
         return parseExcel(inputStream, fieldValueMap, clazz);
     }
 
-    public static Collection<Object> parseExcel(InputStream inputStream, Map<String, String> fieldValueMap, Class<?> clazz) {
-        objects = new ArrayList<Object>();
+    public static <T> Collection<T> parseExcel(InputStream inputStream, Map<String, String> fieldValueMap, Class<T> clazz) {
+        Collection<T> objects = new ArrayList<T>();
         setClazz(clazz);
         List<Sheet> sheets = readInputStream(inputStream);
         Sheet rows = sheets.get(0);
@@ -54,7 +54,7 @@ public class ExcelUtil {
         row = rows.getRow(i);
         AccessibleObject.setAccessible(fields,true);
         while (row != null) {
-            Object object = getObject(row);
+            T object = getObject(row,clazz);
             objects.add(object);
             i++;
             row = rows.getRow(i);
@@ -92,32 +92,8 @@ public class ExcelUtil {
      */
     private static void setIndex(Map<String, String> fieldValueMap, Map<String, Integer> valueIndexMap) {
         index = new Integer[fields.length];
-        type = new Integer[fields.length];
         for (int i = 0; i < fields.length; i++) {
             index[i] = valueIndexMap.get(fieldValueMap.get(fields[i].getName()));
-            Class<?> name = fields[i].getType();
-            if (name.equals(byte.class) || name.equals(Byte.class)) {
-                ExcelUtil.type[i] = 0;
-            } else if (name.equals(short.class) || name.equals(Short.class)) {
-                ExcelUtil.type[i] = 1;
-            } else if (name.equals(int.class) || name.equals(Integer.class)) {
-                ExcelUtil.type[i] = 2;
-            } else if (name.equals(long.class) || name.equals(Long.class)) {
-                ExcelUtil.type[i] = 3;
-            } else if (name.equals(float.class) || name.equals(Float.class)) {
-                ExcelUtil.type[i] = 4;
-            } else if (name.equals(double.class) || name.equals(Double.class)) {
-                ExcelUtil.type[i] = 5;
-            } else if (name.equals(boolean.class) || name.equals(Boolean.class)) {
-                ExcelUtil.type[i] = 6;
-            } else if (name.equals(char.class) || name.equals(Character.class)) {
-                ExcelUtil.type[i] = 7;
-            } else if (name.equals(String.class)) {
-                ExcelUtil.type[i] = 8;
-            } else if (name.equals(Date.class)) {
-                ExcelUtil.type[i] = 9;
-            }
-
         }
     }
 
@@ -169,6 +145,21 @@ public class ExcelUtil {
     }
 
     /**
+     * 通过注解生成属性名与表头关系
+     * @param clazz
+     * @return
+     */
+    private static Map<String, String> getFieldValueMap(Class<?> clazz){
+        Map<String,String> map = new HashMap<String, String>();
+        Field[] fields = clazz.getDeclaredFields();
+        for(int i = 0; i<fields.length;i++){
+            String value = fields[i].getAnnotation(Header.class).value();
+            map.put(fields[i].getName(),value);
+        }
+        return map;
+    }
+
+    /**
      * 初始化类Class与类属性Feild
      *
      * @param clazz1
@@ -184,48 +175,16 @@ public class ExcelUtil {
      * @param row 从表中获取的单行值
      * @return 返回创建的对象
      */
-    private static Object getObject(Row row) {
+    private static <T> T getObject(Row row,Class<T> tClass) {
 
         try {
-            Object o = clazz.newInstance();
+            T object = tClass.newInstance();
             for (int i = 0; i < fields.length; i++) {
-                String cell = row.getCell(i).toString();
-                switch (type[i]) {
-                    case 0:
-                        fields[i].set(o, Byte.parseByte(cell));
-                        break;
-                    case 1:
-                        fields[i].set(o, Short.parseShort(cell));
-                        break;
-                    case 2:
-                        fields[i].set(o, Integer.parseInt(cell));
-                        break;
-                    case 3:
-                        fields[i].set(o, Long.parseLong(cell));
-                        break;
-                    case 4:
-                        fields[i].set(o, Float.parseFloat(cell));
-                        break;
-                    case 5:
-                        fields[i].set(o, Double.parseDouble(cell));
-                        break;
-                    case 6:
-                        fields[i].set(o, Boolean.parseBoolean(cell));
-                        break;
-                    case 7:
-                        fields[i].set(o, cell.charAt(0));
-                        break;
-                    case 8:
-                        fields[i].set(o, cell);
-                        break;
-                    case 9:
-                        fields[i].set(o, Date.parse(cell));
-                        break;
-                    default:
-                        break;
-                }
+                String cell = row.getCell(index[i]).toString();
+                Object valueElement = getValueElement(cell, fields[i].getType());
+                fields[i].set(object,valueElement);
             }
-            return o;
+            return object;
         } catch (InstantiationException e) {
             e.printStackTrace();
             return null;
@@ -234,5 +193,28 @@ public class ExcelUtil {
             return null;
         }
 
+    }
+
+    /**
+     * 根据传入的字符串与要转换的格式进行转换
+     * @param s
+     * @param tClass
+     * @param <T>
+     * @return
+     */
+    public static <T> T getValueElement(String s ,Class<T> tClass){
+        if(tClass.equals(String.class)){
+            return (T)s;
+        }
+        if(tClass.equals(Double.class)){
+            return tClass.cast((Number)Double.parseDouble(s));
+        }
+        if(tClass.equals(Integer.class)){
+            return tClass.cast(Integer.parseInt(s.split("\\.")[0]));
+        }
+        if(tClass.equals(Date.class)){
+            return tClass.cast(DateUtil.getJavaDate(Double.parseDouble(s)));
+        }
+        return null;
     }
 }
