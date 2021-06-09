@@ -11,6 +11,9 @@ import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.util.*;
 
+/**
+ * @author kx.dong
+ */
 public class ExcelUtil {
 
     private static final Date TIME_SINCE = new GregorianCalendar(1900, 0, 0).getTime();
