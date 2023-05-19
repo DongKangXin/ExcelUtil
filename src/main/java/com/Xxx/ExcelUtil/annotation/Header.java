@@ -1,5 +1,7 @@
 package com.Xxx.ExcelUtil.annotation;
 
+import com.Xxx.ExcelUtil.enums.Types;
+
 import java.lang.annotation.*;
 
 @Target(ElementType.FIELD)
@@ -8,4 +10,6 @@ import java.lang.annotation.*;
 public @interface Header {
 
     String value();
+
+    Types type();
 }
